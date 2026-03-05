@@ -11,7 +11,7 @@ public actor CheBiblatexMCPServer {
     public init() async throws {
         server = Server(
             name: "che-biblatex-mcp",
-            version: "0.1.0",
+            version: "0.2.0",
             capabilities: .init(tools: .init())
         )
         transport = StdioTransport()
@@ -182,6 +182,68 @@ public actor CheBiblatexMCPServer {
                 "required": .array([.string("file_path")])
             ])
         ),
+        Tool(
+            name: "bib_fix_entry",
+            description: "Auto-fix a single entry to conform to APA 7 biblatex format. Normalizes entry type, field names, author format, date format, and reports missing fields. Returns the fixed BibTeX and a list of changes.",
+            inputSchema: .object([
+                "type": .string("object"),
+                "properties": .object([
+                    "file_path": .object([
+                        "type": .string("string"),
+                        "description": .string("Absolute path to the .bib file")
+                    ]),
+                    "key": .object([
+                        "type": .string("string"),
+                        "description": .string("Citation key of the entry to fix")
+                    ]),
+                    "apply": .object([
+                        "type": .string("boolean"),
+                        "description": .string("If true, write the fixed entry back to the file. Default: false (dry-run).")
+                    ])
+                ]),
+                "required": .array([.string("file_path"), .string("key")])
+            ])
+        ),
+        Tool(
+            name: "bib_normalize",
+            description: "Batch-fix all entries in a .bib file to APA 7 format. Returns a report of all changes. Use apply=true to write changes.",
+            inputSchema: .object([
+                "type": .string("object"),
+                "properties": .object([
+                    "file_path": .object([
+                        "type": .string("string"),
+                        "description": .string("Absolute path to the .bib file")
+                    ]),
+                    "apply": .object([
+                        "type": .string("boolean"),
+                        "description": .string("If true, write all fixes back to the file. Default: false (dry-run).")
+                    ])
+                ]),
+                "required": .array([.string("file_path")])
+            ])
+        ),
+        Tool(
+            name: "bib_import",
+            description: "Parse a plain-text APA reference (e.g. copy-pasted from a paper) into a biblatex entry. Extracts authors, date, title, journal, DOI, etc.",
+            inputSchema: .object([
+                "type": .string("object"),
+                "properties": .object([
+                    "text": .object([
+                        "type": .string("string"),
+                        "description": .string("Plain-text APA citation (e.g. 'Author, A. A. (2020). Title. Journal, 1(2), 3–4. https://doi.org/...')")
+                    ]),
+                    "key": .object([
+                        "type": .string("string"),
+                        "description": .string("Optional: citation key. Auto-generated if omitted.")
+                    ]),
+                    "file_path": .object([
+                        "type": .string("string"),
+                        "description": .string("Optional: if provided, append the parsed entry to this .bib file.")
+                    ])
+                ]),
+                "required": .array([.string("text")])
+            ])
+        ),
     ]
 
     // MARK: - Handler Registration
@@ -217,6 +279,12 @@ public actor CheBiblatexMCPServer {
                 return try handleDeleteEntry(params)
             case "bib_diff_zotero":
                 return try handleDiffZotero(params)
+            case "bib_fix_entry":
+                return try handleFixEntry(params)
+            case "bib_normalize":
+                return try handleNormalize(params)
+            case "bib_import":
+                return try handleImport(params)
             default:
                 return CallTool.Result(
                     content: [.text("Unknown tool: \(params.name)")],
@@ -443,5 +511,132 @@ public actor CheBiblatexMCPServer {
         let result = BibZoteroDiff.diff(bibFile: bibFile, zoteroItems: zoteroItems)
 
         return CallTool.Result(content: [.text(result.summary)], isError: false)
+    }
+
+    // MARK: - APA Fix Handlers
+
+    private func handleFixEntry(_ params: CallTool.Parameters) throws -> CallTool.Result {
+        let filePath = params.arguments?["file_path"]?.stringValue ?? ""
+        let key = params.arguments?["key"]?.stringValue ?? ""
+        let apply = params.arguments?["apply"]?.boolValue ?? false
+
+        let bibFile = try BibParser.parse(filePath: filePath)
+        guard let entry = bibFile.entry(forKey: key) else {
+            return CallTool.Result(
+                content: [.text("Entry not found: \(key)")],
+                isError: true
+            )
+        }
+
+        let result = APARuleEngine.fix(entry: entry)
+
+        if !result.hasChanges {
+            return CallTool.Result(
+                content: [.text("[\(key)] Already conforms to APA 7. No changes needed.")],
+                isError: false
+            )
+        }
+
+        var lines: [String] = [result.summary, ""]
+
+        if apply {
+            // Write the fixed entry back
+            let content = try String(contentsOfFile: filePath, encoding: .utf8)
+            let fixedText = BibWriter.serialize(result.fixedEntry)
+            let newContent = content.replacingOccurrences(of: entry.rawText, with: fixedText)
+            try newContent.write(toFile: filePath, atomically: true, encoding: .utf8)
+            lines.append("Changes written to \(filePath).")
+        } else {
+            lines.append("Fixed BibTeX (dry-run, not written):")
+            lines.append(BibWriter.serialize(result.fixedEntry))
+        }
+
+        return CallTool.Result(content: [.text(lines.joined(separator: "\n"))], isError: false)
+    }
+
+    private func handleNormalize(_ params: CallTool.Parameters) throws -> CallTool.Result {
+        let filePath = params.arguments?["file_path"]?.stringValue ?? ""
+        let apply = params.arguments?["apply"]?.boolValue ?? false
+
+        let bibFile = try BibParser.parse(filePath: filePath)
+        let results = APARuleEngine.fixAll(bibFile)
+
+        let changed = results.filter { $0.hasChanges }
+        let totalActions = changed.reduce(0) { $0 + $1.actions.count }
+
+        if changed.isEmpty {
+            return CallTool.Result(
+                content: [.text("All \(bibFile.entries.count) entries already conform to APA 7.")],
+                isError: false
+            )
+        }
+
+        var lines: [String] = [
+            "APA 7 Normalization Report",
+            "Total: \(bibFile.entries.count) entries, \(changed.count) need fixes, \(totalActions) actions\n"
+        ]
+
+        for r in changed {
+            lines.append(r.summary)
+            lines.append("")
+        }
+
+        if apply {
+            var content = try String(contentsOfFile: filePath, encoding: .utf8)
+            // Apply fixes in reverse order to preserve line positions
+            for r in changed.reversed() {
+                if let original = bibFile.entry(forKey: r.originalKey) {
+                    let fixedText = BibWriter.serialize(r.fixedEntry)
+                    content = content.replacingOccurrences(of: original.rawText, with: fixedText)
+                }
+            }
+            try content.write(toFile: filePath, atomically: true, encoding: .utf8)
+            lines.append("All changes written to \(filePath).")
+        } else {
+            lines.append("Dry-run complete. Use apply=true to write changes.")
+        }
+
+        return CallTool.Result(content: [.text(lines.joined(separator: "\n"))], isError: false)
+    }
+
+    private func handleImport(_ params: CallTool.Parameters) throws -> CallTool.Result {
+        let text = params.arguments?["text"]?.stringValue ?? ""
+        let suggestedKey = params.arguments?["key"]?.stringValue
+        let filePath = params.arguments?["file_path"]?.stringValue
+
+        guard let entry = APACitationParser.parse(text, suggestedKey: suggestedKey) else {
+            return CallTool.Result(
+                content: [.text("Could not parse citation text. Ensure it follows APA format:\n\nAuthor, A. A. (2020). Title. Journal, 1(2), 3–4. https://doi.org/...")],
+                isError: true
+            )
+        }
+
+        // Run APA fix on the parsed entry
+        let fixed = APARuleEngine.fix(entry: entry)
+        let finalEntry = fixed.fixedEntry
+        let bibtex = BibWriter.serialize(finalEntry)
+
+        var lines: [String] = [
+            "Parsed citation → @\(finalEntry.entryType){\(finalEntry.key)}",
+            ""
+        ]
+
+        if fixed.hasChanges {
+            lines.append("Auto-corrections applied:")
+            for a in fixed.actions {
+                lines.append("  \(a)")
+            }
+            lines.append("")
+        }
+
+        lines.append("Generated BibTeX:")
+        lines.append(bibtex)
+
+        if let path = filePath, !path.isEmpty {
+            try BibWriter.addEntry(to: path, entry: finalEntry)
+            lines.append("\nAppended to \(path).")
+        }
+
+        return CallTool.Result(content: [.text(lines.joined(separator: "\n"))], isError: false)
     }
 }

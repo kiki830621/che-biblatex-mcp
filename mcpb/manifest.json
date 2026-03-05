@@ -1,0 +1,25 @@
+{
+  "manifest_version": "0.3",
+  "name": "che-biblatex-mcp",
+  "version": "0.1.0",
+  "description": "BibLaTeX file management MCP server — parse, validate (APA 7), edit, and diff against Zotero",
+  "author": {
+    "name": "Che Cheng"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/kiki830621/che-biblatex-mcp",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kiki830621/che-biblatex-mcp"
+  },
+  "server": {
+    "type": "binary",
+    "entry_point": "server/CheBiblatexMCP",
+    "mcp_config": {
+      "command": "$DIRNAME/server/CheBiblatexMCP",
+      "args": [],
+      "env": {}
+    }
+  },
+  "keywords": ["biblatex", "bibtex", "zotero", "academic", "citations", "apa"]
+}

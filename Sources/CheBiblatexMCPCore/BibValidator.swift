@@ -34,7 +34,7 @@ public struct BibValidator {
     // Recommended fields (warnings if missing)
     private static let recommendedFields: [String: [String]] = [
         "ARTICLE": ["DOI", "VOLUME"],
-        "PRESENTATION": ["VENUE", "TITLEADDON"],
+        "PRESENTATION": ["VENUE"],
     ]
 
     /// Validate all entries in a BibFile.
@@ -60,16 +60,23 @@ public struct BibValidator {
             }
         }
 
-        // Check recommended fields
-        if let recommended = recommendedFields[type] {
-            for field in recommended {
-                if !hasField(entry, field) {
-                    issues.append(ValidationIssue(
-                        key: entry.key,
-                        severity: .warning,
-                        message: "Missing recommended field: \(field)"
-                    ))
-                }
+        // Check recommended fields (context-aware for PRESENTATION)
+        let recommended: [String]
+        if type == "PRESENTATION" {
+            let hasMainTitle = hasField(entry, "MAINTITLE")
+            recommended = APADataModel.presentationRecommendedFields(
+                hasMainTitle: hasMainTitle
+            )
+        } else {
+            recommended = recommendedFields[type] ?? []
+        }
+        for field in recommended {
+            if !hasField(entry, field) {
+                issues.append(ValidationIssue(
+                    key: entry.key,
+                    severity: .warning,
+                    message: "Missing recommended field: \(field)"
+                ))
             }
         }
 

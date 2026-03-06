@@ -127,15 +127,22 @@ public struct APARuleEngine {
             }
         }
 
-        // Phase 8: Check for missing recommended fields
-        if let recommended = APADataModel.recommendedFields[entryType] {
-            for field in recommended {
-                if caseInsensitiveGet(fields, field) == nil {
-                    actions.append(FixAction(
-                        kind: .warning,
-                        message: "Consider adding recommended field: \(field)"
-                    ))
-                }
+        // Phase 8: Check for missing recommended fields (context-aware for PRESENTATION)
+        let recommended: [String]
+        if entryType == "PRESENTATION" {
+            let hasMainTitle = caseInsensitiveGet(fields, "MAINTITLE") != nil
+            recommended = APADataModel.presentationRecommendedFields(
+                hasMainTitle: hasMainTitle
+            )
+        } else {
+            recommended = APADataModel.recommendedFields[entryType] ?? []
+        }
+        for field in recommended {
+            if caseInsensitiveGet(fields, field) == nil {
+                actions.append(FixAction(
+                    kind: .warning,
+                    message: "Consider adding recommended field: \(field)"
+                ))
             }
         }
 

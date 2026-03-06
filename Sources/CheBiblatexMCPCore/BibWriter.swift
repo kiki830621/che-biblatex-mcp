@@ -17,12 +17,26 @@ public struct BibWriter {
         return lines.joined(separator: "\n")
     }
 
-    /// Add a new entry to a .bib file (appends before the end, grouped by type).
+    /// Result of an add operation, indicating whether a new entry was created or skipped (duplicate).
+    public struct AddEntryResult {
+        public let entry: BibEntry
+        public let isDuplicate: Bool
+    }
+
+    /// Add a new entry to a .bib file (appends at the end).
+    /// Idempotent: if a citation key already exists, skips the write and returns the existing entry.
+    @discardableResult
     public static func addEntry(
         to filePath: String,
         entry: BibEntry
-    ) throws {
+    ) throws -> AddEntryResult {
         var content = try String(contentsOfFile: filePath, encoding: .utf8)
+
+        // Idempotency check: parse file and look for existing key
+        let bibFile = BibParser.parse(content: content, filePath: filePath)
+        if let existing = bibFile.entry(forKey: entry.key) {
+            return AddEntryResult(entry: existing, isDuplicate: true)
+        }
 
         // Ensure trailing newline
         if !content.hasSuffix("\n") { content += "\n" }
@@ -31,6 +45,7 @@ public struct BibWriter {
         content += "\n" + serialize(entry) + "\n"
 
         try content.write(toFile: filePath, atomically: true, encoding: .utf8)
+        return AddEntryResult(entry: entry, isDuplicate: false)
     }
 
     /// Update fields on an existing entry in the .bib file.

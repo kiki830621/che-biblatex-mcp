@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0] - 2026-03-06
+
+### Added
+- Idempotent `bib_add_entry`: checks for existing citation key before adding; returns "Skipped (duplicate)" if key already exists
+- Idempotent `bib_import`: inherits duplicate detection from `addEntry` when appending to file
+- `AddEntryResult` struct with `isDuplicate` flag for programmatic status reporting
+
 ## [0.2.1] - 2026-03-06
 
 ### Changed

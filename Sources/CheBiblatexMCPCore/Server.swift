@@ -11,7 +11,7 @@ public actor CheBiblatexMCPServer {
     public init() async throws {
         server = Server(
             name: "che-biblatex-mcp",
-            version: "0.2.0",
+            version: "0.3.0",
             capabilities: .init(tools: .init())
         )
         transport = StdioTransport()
@@ -439,7 +439,14 @@ public actor CheBiblatexMCPServer {
             lineNumber: 0
         )
 
-        try BibWriter.addEntry(to: filePath, entry: entry)
+        let result = try BibWriter.addEntry(to: filePath, entry: entry)
+
+        if result.isDuplicate {
+            return CallTool.Result(
+                content: [.text("Skipped (duplicate): entry [\(key)] already exists in \(filePath).")],
+                isError: false
+            )
+        }
 
         // Validate the new entry
         let issues = BibValidator.validate(entry: entry)
@@ -634,8 +641,12 @@ public actor CheBiblatexMCPServer {
         lines.append(bibtex)
 
         if let path = filePath, !path.isEmpty {
-            try BibWriter.addEntry(to: path, entry: finalEntry)
-            lines.append("\nAppended to \(path).")
+            let addResult = try BibWriter.addEntry(to: path, entry: finalEntry)
+            if addResult.isDuplicate {
+                lines.append("\nSkipped (duplicate): [\(finalEntry.key)] already exists in \(path).")
+            } else {
+                lines.append("\nAppended to \(path).")
+            }
         }
 
         return CallTool.Result(content: [.text(lines.joined(separator: "\n"))], isError: false)

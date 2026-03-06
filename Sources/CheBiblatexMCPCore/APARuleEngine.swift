@@ -188,8 +188,15 @@ public struct APARuleEngine {
                 }
                 // Drop the alias (don't add duplicate)
             } else {
-                // Keep the field as-is (preserve original case)
-                result[pair.key] = pair.value
+                // Normalize field name to UPPERCASE (biblatex-apa convention)
+                let normalized = pair.key.uppercased()
+                if normalized != pair.key {
+                    actions.append(FixAction(
+                        kind: .fieldRenamed,
+                        message: "\(pair.key) → \(normalized)"
+                    ))
+                }
+                result[normalized] = pair.value
             }
         }
 

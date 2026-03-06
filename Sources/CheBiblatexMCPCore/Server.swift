@@ -419,14 +419,15 @@ public actor CheBiblatexMCPServer {
 
     private func handleAddEntry(_ params: CallTool.Parameters) throws -> CallTool.Result {
         let filePath = params.arguments?["file_path"]?.stringValue ?? ""
-        let entryType = params.arguments?["entry_type"]?.stringValue ?? "ARTICLE"
+        let entryType = (params.arguments?["entry_type"]?.stringValue ?? "ARTICLE").uppercased()
         let key = params.arguments?["key"]?.stringValue ?? ""
         let fieldsObj = params.arguments?["fields"]?.objectValue ?? [:]
 
+        // Normalize field keys to UPPERCASE (biblatex-apa convention)
         var fields = OrderedDict()
         for (k, v) in fieldsObj {
             if let s = v.stringValue {
-                fields[k] = s
+                fields[k.uppercased()] = s
             }
         }
 

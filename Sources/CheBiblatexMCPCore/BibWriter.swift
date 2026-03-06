@@ -8,10 +8,10 @@ public struct BibWriter {
     /// Serialize a single entry to biblatex format.
     public static func serialize(_ entry: BibEntry, indent: String = "  ") -> String {
         var lines: [String] = []
-        lines.append("@\(entry.entryType){\(entry.key),")
+        lines.append("@\(entry.entryType.uppercased()){\(entry.key),")
         for pair in entry.fields.pairs {
             let value = needsBraces(pair.value) ? "{\(pair.value)}" : pair.value
-            lines.append("\(indent)\(pair.key) = \(value),")
+            lines.append("\(indent)\(pair.key.uppercased()) = \(value),")
         }
         lines.append("}")
         return lines.joined(separator: "\n")
@@ -47,14 +47,14 @@ public struct BibWriter {
             throw BibWriterError.entryNotFound(key)
         }
 
-        // Build updated entry
+        // Build updated entry (normalize field keys to UPPERCASE per biblatex-apa convention)
         var newFields = existing.fields
         for (k, v) in updatedFields {
-            newFields[k] = v
+            newFields[k.uppercased()] = v
         }
 
         let updatedEntry = BibEntry(
-            entryType: existing.entryType,
+            entryType: existing.entryType.uppercased(),
             key: key,
             fields: newFields,
             rawText: "",

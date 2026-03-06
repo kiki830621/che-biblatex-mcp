@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.1] - 2026-03-06
+
+### Changed
+- Normalize all entry types and field names to UPPERCASE per biblatex-apa convention (`@article` → `@ARTICLE`, `author` → `AUTHOR`)
+- `bib_normalize` / `bib_fix_entry` now uppercase all field keys, not just aliased ones
+- `bib_add_entry` / `bib_update_entry` now auto-uppercase entry type and field keys on write
+- `BibWriter.serialize` always outputs UPPERCASE entry types and field names
+- `BibEntry` accessors use case-insensitive lookup via `OrderedDict.caseInsensitiveValue`
+
 ## [0.2.0] - 2026-03-06
 
 ### Added

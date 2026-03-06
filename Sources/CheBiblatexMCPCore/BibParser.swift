@@ -12,11 +12,11 @@ public struct BibEntry: Equatable {
     public let rawText: String     // original text for lossless round-tripping
     public let lineNumber: Int     // 1-based line number in file
 
-    public var title: String? { fields["TITLE"] ?? fields["title"] }
-    public var date: String? { fields["DATE"] ?? fields["date"] }
-    public var doi: String? { fields["DOI"] ?? fields["doi"] }
-    public var authors: String? { fields["AUTHOR"] ?? fields["author"] }
-    public var bibType: String? { fields["type"] }
+    public var title: String? { fields.caseInsensitiveValue(forKey: "TITLE") }
+    public var date: String? { fields.caseInsensitiveValue(forKey: "DATE") }
+    public var doi: String? { fields.caseInsensitiveValue(forKey: "DOI") }
+    public var authors: String? { fields.caseInsensitiveValue(forKey: "AUTHOR") }
+    public var bibType: String? { fields.caseInsensitiveValue(forKey: "TYPE") }
 
     /// Normalized entry type (uppercased)
     public var normalizedType: String { entryType.uppercased() }
@@ -45,6 +45,15 @@ public struct OrderedDict: Equatable {
 
     public var pairs: [(key: String, value: String)] {
         keys.compactMap { k in values[k].map { (key: k, value: $0) } }
+    }
+
+    /// Case-insensitive field lookup (biblatex field names are case-insensitive).
+    public func caseInsensitiveValue(forKey name: String) -> String? {
+        let lower = name.lowercased()
+        if let key = keys.first(where: { $0.lowercased() == lower }) {
+            return values[key]
+        }
+        return nil
     }
 }
 

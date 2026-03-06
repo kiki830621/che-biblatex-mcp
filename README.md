@@ -52,12 +52,13 @@ cp .build/release/CheBiblatexMCP ~/bin/
 - **Language**: Swift 5.9+
 - **Platform**: macOS 14+
 - **MCP SDK**: swift-sdk 0.11.x
-- **Current Version**: v0.3.0
+- **Current Version**: v0.3.1
 
 ## Version History
 
 | Version | Changes |
 |---------|---------|
+| v0.3.1 | Fix parser crash on LaTeX diacriticals (`\"`, `\'`, `\~`) — `G\"{u}ltas` no longer breaks entry boundary detection |
 | v0.3.0 | Idempotent `bib_add_entry` and `bib_import` — skip duplicates by citation key |
 | v0.2.1 | Normalize entry types and field names to UPPERCASE per biblatex-apa convention |
 | v0.2.0 | APA 7 rule engine, section classifier, 3 new tools, symposium-aware validation, 20 tests |

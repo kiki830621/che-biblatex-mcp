@@ -662,4 +662,120 @@ final class APAReferenceTests: XCTestCase {
         }
         return nil
     }
+
+    // MARK: - LaTeX Escape Tests
+
+    func testParserHandlesLatexUmlautInBraces() {
+        // G\"{u}ltas contains \" which must not be treated as a BibTeX quote delimiter
+        let bib = """
+        @article{lange2025,
+          title = {{optRF}: Optimising Random Forest},
+          author = {Lange, Thomas M. and G\\"{u}ltas, Mehmet and Schmitt, Armin O.},
+          year = {2025},
+          journal = {BMC Bioinformatics},
+          volume = {26},
+          pages = {95},
+          doi = {10.1186/s12859-025-06097-1}
+        }
+
+        @article{next2024,
+          title = {The Next Paper},
+          author = {Smith, John},
+          year = {2024},
+          journal = {Nature},
+          volume = {1},
+          pages = {1--10}
+        }
+        """
+        let bibFile = BibParser.parse(content: bib)
+
+        XCTAssertEqual(bibFile.entries.count, 2,
+            "Should parse both entries — \\\" in author must not break entry boundary detection")
+
+        let lange = bibFile.entries.first { $0.key == "lange2025" }
+        XCTAssertNotNil(lange)
+        XCTAssertTrue(lange?.authors?.contains("ltas") ?? false,
+            "Author field should contain the full name with umlaut")
+        XCTAssertEqual(lange?.fields.caseInsensitiveValue(forKey: "VOLUME"), "26")
+        XCTAssertEqual(lange?.fields.caseInsensitiveValue(forKey: "DOI"),
+            "10.1186/s12859-025-06097-1")
+
+        let next = bibFile.entries.first { $0.key == "next2024" }
+        XCTAssertNotNil(next, "Second entry must not be swallowed by the first")
+        XCTAssertEqual(next?.authors, "Smith, John")
+    }
+
+    func testParserHandlesMultipleLatexDiacriticals() {
+        // Test various LaTeX diacritical commands: \", \', \~, \^, \`
+        let bib = """
+        @incollection{test_diacriticals,
+          author = {M\\"{u}ller, Hans and Garc\\'ia, Mar\\'ia and Nu\\~{n}ez, Carlos},
+          title = {Some Title},
+          booktitle = {Some Book},
+          year = {2023},
+          pages = {1--20}
+        }
+        """
+        let bibFile = BibParser.parse(content: bib)
+
+        XCTAssertEqual(bibFile.entries.count, 1)
+        let entry = bibFile.entries.first
+        XCTAssertNotNil(entry)
+        XCTAssertEqual(entry?.fields.count, 5,
+            "All 5 fields should be parsed correctly")
+        XCTAssertTrue(entry?.authors?.contains("ller") ?? false)
+    }
+
+    func testParserHandlesLatexUmlautFollowedByMoreEntries() {
+        // Regression test: entries after one with \" must retain all their fields
+        let bib = """
+        @article{first2025,
+          author = {G\\"{u}nther, Klaus},
+          title = {First Paper},
+          year = {2025},
+          journal = {J1}
+        }
+
+        @article{second2025,
+          author = {Morris, Tim P. and White, Ian R.},
+          title = {Second Paper},
+          year = {2025},
+          journal = {Statistics in Medicine},
+          volume = {38},
+          number = {11},
+          pages = {2074--2102},
+          doi = {10.1002/sim.8086}
+        }
+
+        @article{third2025,
+          author = {Fawcett, Tom},
+          title = {Third Paper},
+          year = {2025},
+          journal = {Pattern Recognition Letters},
+          volume = {27},
+          number = {8},
+          pages = {861--874},
+          doi = {10.1016/j.patrec.2005.10.010}
+        }
+        """
+        let bibFile = BibParser.parse(content: bib)
+
+        XCTAssertEqual(bibFile.entries.count, 3,
+            "All 3 entries must be parsed as separate entries")
+
+        // Verify subsequent entries retain all fields
+        let second = bibFile.entries.first { $0.key == "second2025" }
+        XCTAssertNotNil(second)
+        XCTAssertEqual(second?.fields.count, 8,
+            "second2025 should have all 8 fields intact")
+        XCTAssertEqual(second?.authors, "Morris, Tim P. and White, Ian R.")
+        XCTAssertEqual(second?.fields.caseInsensitiveValue(forKey: "DOI"),
+            "10.1002/sim.8086")
+
+        let third = bibFile.entries.first { $0.key == "third2025" }
+        XCTAssertNotNil(third)
+        XCTAssertEqual(third?.fields.count, 8,
+            "third2025 should have all 8 fields intact")
+        XCTAssertEqual(third?.fields.caseInsensitiveValue(forKey: "PAGES"), "861--874")
+    }
 }

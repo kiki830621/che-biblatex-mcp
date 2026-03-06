@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.1] - 2026-03-06
+
+### Fixed
+- `countBraces` now skips `\"` (LaTeX umlaut) instead of treating it as a BibTeX quote delimiter — fixes parser merging multiple entries when author names contain `G\"{u}ltas`, `M\"{u}ller`, etc.
+- `extractValue` quoted-value branch now handles `\"` inside `"..."` delimited values
+
+### Added
+- 3 new parser tests for LaTeX diacritical handling (`\"`, `\'`, `\~`, `\^`, `` \` ``)
+
 ## [0.3.0] - 2026-03-06
 
 ### Added

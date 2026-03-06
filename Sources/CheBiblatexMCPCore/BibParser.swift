@@ -224,9 +224,18 @@ public struct BibParser {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             return (inner, rest)
         } else if s.hasPrefix("\"") {
-            // Quoted value
+            // Quoted value — find closing " that isn't a LaTeX escape \"
             s = String(s.dropFirst())
-            if let closeQuote = s.firstIndex(of: "\"") {
+            var closeIdx: String.Index? = nil
+            var prev: Character = "\0"
+            for idx in s.indices {
+                if s[idx] == "\"" && prev != "\\" {
+                    closeIdx = idx
+                    break
+                }
+                prev = s[idx]
+            }
+            if let closeQuote = closeIdx {
                 let inner = String(s[s.startIndex..<closeQuote])
                 let rest = String(s[s.index(after: closeQuote)...])
                     .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -252,12 +261,15 @@ public struct BibParser {
     private static func countBraces(in line: String) -> Int {
         var count = 0
         var inQuote = false
+        var prevChar: Character = "\0"
         for ch in line {
-            if ch == "\"" { inQuote.toggle() }
+            // Skip \" — it's a LaTeX diacritical (umlaut), not a BibTeX quote delimiter
+            if ch == "\"" && prevChar != "\\" { inQuote.toggle() }
             if !inQuote {
                 if ch == "{" { count += 1 }
                 else if ch == "}" { count -= 1 }
             }
+            prevChar = ch
         }
         return count
     }

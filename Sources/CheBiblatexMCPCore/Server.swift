@@ -11,7 +11,7 @@ public actor CheBiblatexMCPServer {
     public init() async throws {
         server = Server(
             name: "che-biblatex-mcp",
-            version: "0.3.0",
+            version: "0.3.1",
             capabilities: .init(tools: .init())
         )
         transport = StdioTransport()

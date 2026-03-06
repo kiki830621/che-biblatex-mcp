@@ -3,6 +3,7 @@
 
 import Foundation
 import MCP
+@_exported import BiblatexAPA
 
 public actor CheBiblatexMCPServer {
     private let server: Server
@@ -11,7 +12,7 @@ public actor CheBiblatexMCPServer {
     public init() async throws {
         server = Server(
             name: "che-biblatex-mcp",
-            version: "0.3.1",
+            version: "0.4.0",
             capabilities: .init(tools: .init())
         )
         transport = StdioTransport()

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0] - 2026-03-06
+
+### Changed
+- **Architecture: shared `biblatex-apa-swift` module** — Extracted 6 core files (`BibParser`, `BibWriter`, `BibValidator`, `APADataModel`, `APARuleEngine`, `ZoteroDiff`) into the [`biblatex-apa-swift`](https://github.com/kiki830621/biblatex-apa-swift) Swift package. This shared module is now also used by `che-zotero-mcp`, eliminating code duplication between the two servers.
+- Server.swift uses `@_exported import BiblatexAPA` to re-export all symbols — existing tool behavior is fully backward-compatible.
+- Version bump: 0.3.1 → 0.4.0
+
 ## [0.3.1] - 2026-03-06
 
 ### Fixed

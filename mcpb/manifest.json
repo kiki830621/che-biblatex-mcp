@@ -1,7 +1,7 @@
 {
   "manifest_version": "0.3",
   "name": "che-biblatex-mcp",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "BibLaTeX MCP server — parse, validate (APA 7), auto-fix, section classify, and diff against Zotero",
   "author": {
     "name": "Che Cheng"
